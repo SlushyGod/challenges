@@ -13,13 +13,13 @@ chal1:
 	gcc $(CFLAGS) $(NOCANARY) $(NONX) $(NOPIE) -o chal1 $(FILE)
 
 chal2:
-	gcc $(CFLAGS) $(NONX) $(NOPIE) -o chal2 $(FILE)
+	gcc $(CFLAGS) $(NONX) $(NOPIE) -fstack-protector-all -o chal2 $(FILE)
 
 chal3:
-	gcc $(CFLAGS) $(NOPIE) -o chal3 $(FILE)
+	gcc $(CFLAGS) $(NOPIE) -fstack-protector-all -o chal3 $(FILE)
 
 chal4:
-	gcc $(CFLAGS) -o chal4 $(FILE)
+	gcc $(CFLAGS) -fstack-protector-all -o chal4 $(FILE)
 
 clean:
 	rm -f chal1 chal2 chal3 chal4

@@ -7,14 +7,15 @@
 #include <ctype.h>
 #include <pwd.h>
 #include <limits.h>
+#include <time.h>
+
+#define MAX_BUFFER 128
 
 typedef struct {
     bool is_verbose;
     char *username;
     char *hostname;
 } Query;
-
-int MAX_BUFFER = 512;
 
 void display_query(char *query) {
     char *ptr = query;
@@ -32,15 +33,10 @@ void display_query(char *query) {
             else printf(".");
         }
         printf("|\n");
-        ptr += 0x10; // next memory addr
+        ptr += 0x10;
     }
 }
 
-// Get the system's info
-// Probably delete this no? (it's not needed since we have another system call)
-void display_sys_info() {
-    system("lsb_release -a");// Can replace this with whatever other info
-}
 
 // Simple linux username validation
 bool is_valid_username(char *username) {
@@ -80,20 +76,19 @@ int display_user(char *username) {
         );
         return 0;
     }
-
     return -1;
-
-    }
 }
 
-bool is_current_hostname(char *hostname) {
+bool is_current_hostname(char* hostname) {
     char hostname_info[HOST_NAME_MAX + 1];
+    printf("%s, %s\n", hostname_info, hostname);
 
     if (gethostname(hostname_info, sizeof(hostname_info)) != 0) {
         printf("Couldn't retrieve hostname.\n");
         return false;
     }
 
+    printf("%s, %s\n", hostname_info, hostname);
     if (strcmp(hostname_info, hostname) == 0) {
         return true;
     }
@@ -101,7 +96,7 @@ bool is_current_hostname(char *hostname) {
     return false;
 }
 
-void display_hostname(char *hostname) {
+void display_hostname(char* hostname) {
     if (is_current_hostname(hostname)) {
         system("uname -a");
     } else {
@@ -191,52 +186,75 @@ int parse_finger_query(char *buffer, Query *user_query) {
     return 0;
 }
 
-void serve() {
-    Query user_query;
-    char query[MAX_BUFFER];
-
-    printf("Enter a query (username or empty for all users): ");
-
-    gets(query);
-    query[strcspn(query, "\r\n")] = '\0'; // Remove newline character
-    printf("\n");
-
-    if (parse_finger_query(query, &user_query) == -1) {
-        display_query(query);    
+int process_finger_query(Query user_query) {
+    if (user_query.is_verbose == true) {
+        printf("");
     }
-
-    // Might need to do something with verbose mode?
     if (user_query.username == NULL &&
         user_query.hostname == NULL) {
-        // Show all information
         display_all_info(user_query); // do something with verbose mode
     } else if (user_query.username != NULL && user_query.hostname != NULL) {
         display_user_hostname(user_query.username, user_query.hostname);
     } else if (user_query.username != NULL) {
         if (display_user(user_query.username) == -1) {
-            printf("User '%s' does not exist on the system.\n", username);
+            printf("User '%s' does not exist on the system.\n", user_query.username);
         }
     } else if (user_query.hostname != NULL) {
         display_hostname(user_query.hostname);
     } else {
+        return -1;
+    }
+    return 0;
+}
+
+void serve() {
+    char query[MAX_BUFFER];
+    Query user_query;
+
+    printf("\nEnter a query (empty for all users): ");
+
+    gets(query);
+    query[strcspn(query, "\r\n")] = '\0'; // Remove newline character
+
+    if (parse_finger_query(query, &user_query) == -1) {
+        display_query(query);
+        return;
+    }
+
+    if (process_finger_query(user_query) == -1) {
         printf("Something went horribly wrong...\n");
         display_query(query);
     }
 }
 
+// Display service name and architecture
+void print_sys_info() {
+    printf("ThumbsUp 0.0.1 - ");
+    #if defined(__amd64__) || defined(__x86_64__) || defined(_M_X64)
+    printf("x86_64 (64-bit)\n");
+    #elif defined(__i386__) || defined(_M_IX86)
+    printf("x86 (32-bit)\n");
+    #elif defined(__aarch64__)
+    printf("ARM64\n");
+    #elif defined(__arm__)
+    printf("ARM\n");
+    #else
+    printf("Unknown architecture\n");
+    #endif
+}
+
+// Disable buffering
 void setup() {
 	setbuf(stdin, NULL);
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);
+    print_sys_info();
 }
 
 int main(int argc, char *argv[]) {
     setup();
-    display_sys_info();
-    // display appropriate queries, just show the RFC query format maybe?
 
     while (true) {
-        printf("\n");
         serve();
     }
 }
